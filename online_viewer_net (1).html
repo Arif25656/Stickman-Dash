@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Stickman Dash</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-user-select:none; }
+html, body {
+  width:100%; height:100%; overflow:hidden;
+  background:#07070f;
+  font-family: 'Courier New', Courier, monospace;
+  color:#e8e8f0;
+  touch-action:none;
+}
+#c {
+  display:block;
+  position:absolute; top:0; left:0;
+  width:100%; height:100%;
+}
+/* HUD */
+#hud {
+  position:absolute; top:0; left:0; right:0;
+  padding:14px 18px;
+  display:flex; justify-content:space-between;
+  pointer-events:none; z-index:10;
+}
+.hg { display:flex; flex-direction:column; gap:2px; }
+.hl { font-size:9px; letter-spacing:.22em; color:#3a3a5a; text-transform:uppercase; }
+.hv { font-size:clamp(17px,3.2vw,24px); font-weight:700; letter-spacing:.04em; transition:transform .08s; }
+.hv.pop { transform:scale(1.4); color:#00f5d4; }
+.hr { text-align:right; }
+
+/* speed bar */
+#sbar {
+  position:absolute; top:0; left:0; right:0; height:3px;
+  pointer-events:none; z-index:10;
+  display:flex; gap:2px; padding:0 2px;
+}
+.sp {
+  flex:1; height:100%; border-radius:0 0 2px 2px;
+  background:#1e1e2e; transition:background .35s;
+}
+.sp.a0 { background:#00f5d4; box-shadow:0 0 5px #00f5d4; }
+.sp.a1 { background:#a78bfa; box-shadow:0 0 5px #a78bfa; }
+.sp.a2 { background:#ff3860; box-shadow:0 0 5px #ff3860; }
+
+/* Overlay */
+#ov {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  z-index:20;
+  background:rgba(7,7,15,.65);
+  backdrop-filter:blur(5px);
+  -webkit-backdrop-filter:blur(5px);
+  transition:opacity .22s;
+}
+#ov.off { opacity:0; pointer-events:none; }
+
+.card {
+  width:min(400px,88vw);
+  background:rgba(12,12,22,.97);
+  border:1px solid #22223a;
+  border-radius:14px;
+  padding:38px 32px 32px;
+  text-align:center;
+  box-shadow:0 0 0 1px rgba(255,255,255,.03), 0 28px 56px rgba(0,0,0,.7),
+             inset 0 1px 0 rgba(255,255,255,.05);
+  animation:cIn .32s cubic-bezier(.34,1.5,.64,1) both;
+}
+@keyframes cIn {
+  from { opacity:0; transform:translateY(18px) scale(.96); }
+  to   { opacity:1; transform:none; }
+}
+
+.eyebrow { font-size:9px; letter-spacing:.5em; color:#3a3a5a; margin-bottom:10px; }
+.title {
+  font-size:clamp(32px,7vw,52px); font-weight:700; line-height:1;
+  margin-bottom:6px;
+}
+.title .a { color:#00f5d4; text-shadow:0 0 18px #00f5d4,0 0 40px rgba(0,245,212,.35); }
+.sub { font-size:9px; letter-spacing:.3em; color:#3a3a5a; margin:12px 0 26px; }
+
+.cg { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:26px; }
+.cb {
+  background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06);
+  border-radius:8px; padding:13px 9px;
+  font-size:9px; letter-spacing:.1em; line-height:1.8; color:rgba(232,232,240,.5);
+}
+.cb b { display:block; font-size:10px; color:#00f5d4; letter-spacing:.18em; margin-bottom:5px; }
+
+.btn {
+  display:block; width:100%; padding:14px;
+  font-family:inherit; font-size:12px; font-weight:700;
+  letter-spacing:.18em; text-transform:uppercase;
+  border:none; border-radius:8px; cursor:pointer;
+  transition:transform .1s, opacity .1s;
+}
+.btn:active { transform:scale(.96); opacity:.85; }
+.bp {
+  background:#00f5d4; color:#07070f;
+  box-shadow:0 0 22px rgba(0,245,212,.3), 0 4px 10px rgba(0,0,0,.4);
+}
+.bp:hover { box-shadow:0 0 32px rgba(0,245,212,.5), 0 4px 14px rgba(0,0,0,.4); }
+.bg {
+  background:transparent; color:#3a3a5a;
+  border:1px solid #1e1e2e; margin-top:9px; font-size:10px;
+}
+.bg:hover { color:#e8e8f0; border-color:#3a3a5a; }
+
+/* Game Over */
+.go-ey { font-size:9px; letter-spacing:.4em; color:#ff3860; margin-bottom:8px; animation:blk .8s step-end infinite; }
+@keyframes blk { 50%{opacity:.25} }
+.go-t {
+  font-size:clamp(26px,6vw,42px); font-weight:700;
+  color:#ff3860; text-shadow:0 0 28px rgba(255,56,96,.45);
+  margin-bottom:24px;
+}
+.sbox {
+  background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.05);
+  border-radius:8px; padding:18px; margin-bottom:22px;
+  display:flex; flex-direction:column; gap:4px;
+}
+.sbox .sl { font-size:9px; letter-spacing:.28em; color:#3a3a5a; }
+.sbox .sv {
+  font-size:clamp(30px,7vw,48px); font-weight:700;
+  background:linear-gradient(135deg,#00f5d4,#a78bfa);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.nr {
+  font-size:9px; letter-spacing:.28em; color:#ffd166;
+  animation:blk .55s step-end infinite; margin-top:5px;
+}
+
+/* Mobile buttons */
+#mb {
+  position:absolute; bottom:22px; left:0; right:0;
+  display:none; justify-content:space-between; padding:0 24px;
+  pointer-events:none; z-index:8;
+}
+.mbb {
+  pointer-events:auto;
+  width:72px; height:72px; border-radius:50%;
+  border:2px solid rgba(0,245,212,.25);
+  background:rgba(0,245,212,.07);
+  display:flex; align-items:center; justify-content:center;
+  font-size:24px; cursor:pointer;
+  transition:transform .08s, background .08s;
+}
+.mbb:active { transform:scale(.88); background:rgba(0,245,212,.2); }
+@media(max-width:700px){
+  #mb { display:flex; }
+  .cg { grid-template-columns:1fr; }
+  .card { padding:28px 20px 22px; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="sbar"></div>
+
+<div id="hud">
+  <div class="hg">
+    <span class="hl">Score</span>
+    <span class="hv" id="sc">0</span>
+  </div>
+  <div class="hg hr">
+    <span class="hl">Best</span>
+    <span class="hv" id="hi">0</span>
+  </div>
+</div>
+
+<div id="ov">
+  <div class="card" id="sCard">
+    <div class="eyebrow">ENDLESS RUNNER</div>
+    <div class="title">STICK<span class="a">MAN</span></div>
+    <div class="sub">HOW FAR CAN YOU GO?</div>
+    <div class="cg">
+      <div class="cb"><b>JUMP</b>↑ &nbsp;W &nbsp;Space<br>Tap right</div>
+      <div class="cb"><b>SLIDE</b>↓ &nbsp;S<br>Tap left</div>
+    </div>
+    <button class="btn bp" id="startBtn">▶ &nbsp;PLAY</button>
+  </div>
+
+  <div class="card" id="goCard" style="display:none">
+    <div class="go-ey">ELIMINATED</div>
+    <div class="go-t">GAME OVER</div>
+    <div class="sbox">
+      <span class="sl">YOUR SCORE</span>
+      <span class="sv" id="goSc">0</span>
+      <span class="nr" id="goRec" style="display:none">✦ NEW BEST ✦</span>
+    </div>
+    <button class="btn bp" id="retryBtn">↺ &nbsp;TRY AGAIN</button>
+    <button class="btn bg" id="menuBtn">MAIN MENU</button>
+  </div>
+</div>
+
+<div id="mb">
+  <div class="mbb" id="slideBtn">↓</div>
+  <div class="mbb" id="jumpBtn">↑</div>
+</div>
+
+<script>
+// ── CANVAS ──────────────────────────────────────────────
+const cv = document.getElementById('c');
+const cx = cv.getContext('2d');
+
+let W, H, GY;
+function resize(){
+  W = cv.width  = window.innerWidth;
+  H = cv.height = window.innerHeight;
+  GY = Math.floor(H * 0.76);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── DOM REFS ─────────────────────────────────────────────
+const scEl    = document.getElementById('sc');
+const hiEl    = document.getElementById('hi');
+const goScEl  = document.getElementById('goSc');
+const goRecEl = document.getElementById('goRec');
+const ov      = document.getElementById('ov');
+const sCard   = document.getElementById('sCard');
+const goCard  = document.getElementById('goCard');
+const sbarEl  = document.getElementById('sbar');
+
+// ── SPEED PIPS ───────────────────────────────────────────
+const N_PIPS = 10;
+const pips = [];
+for(let i=0;i<N_PIPS;i++){
+  const d = document.createElement('div');
+  d.className = 'sp';
+  sbarEl.appendChild(d);
+  pips.push(d);
+}
+function refreshPips(spd, spd0, spdMax){
+  const t = (spd - spd0) / (spdMax - spd0);
+  const n = Math.round(t * N_PIPS);
+  const cls = t > .74 ? 'a2' : t > .44 ? 'a1' : 'a0';
+  pips.forEach((p,i)=>{
+    p.className = 'sp' + (i < n ? ' '+cls : '');
+  });
+}
+
+// ── CONSTANTS ────────────────────────────────────────────
+const G       = 0.60;   // gravity per frame
+const JVEL    = -14.5;  // jump velocity
+const DUCK_F  = 44;     // duck duration frames
+const SPD0    = 6.5;    // starting speed
+const SPD_MAX = 15.0;
+const SPD_INC = 0.0004; // per frame
+const GAP0    = 520;    // starting spawn gap (px)
+const GAP_MIN = 240;
+
+// ── DAY / NIGHT CYCLE ────────────────────────────────────
+// dn = 0 → full night, 1 → full day
+let dn = 0;           // current blend (0=night, 1=day)
+let dnTarget = 0;     // target we're moving toward
+let lastDnScore = 0;  // last score milestone that triggered a flip
+const DN_RATE = 0.007;// blend units per frame
+
+function lerp(a,b,t){ return a+(b-a)*t; }
+function lerpCSS(n,d,t){  // n,d = [r,g,b]
+  return `rgb(${Math.round(lerp(n[0],d[0],t))},${Math.round(lerp(n[1],d[1],t))},${Math.round(lerp(n[2],d[2],t))})`;
+}
+function lerpCSSA(n,d,t,a){
+  return `rgba(${Math.round(lerp(n[0],d[0],t))},${Math.round(lerp(n[1],d[1],t))},${Math.round(lerp(n[2],d[2],t))},${a})`;
+}
+
+// Each entry: [nightRGB, dayRGB]
+const PAL = {
+  sky0:  [[4,4,14],     [100,160,255]],  // sky top
+  sky1:  [[11,6,26],    [75,130,230]],   // sky mid
+  sky2:  [[22,7,40],    [255,150,70]],   // sky near horizon
+  horiz: [[0,245,212],  [255,110,30]],   // horizon glow colour
+  gf0:   [[14,6,28],    [180,210,255]],  // ground fill top
+  gf1:   [[4,4,14],     [120,165,220]],  // ground fill bottom
+  gline: [[0,245,212],  [255,80,10]],    // ground glow line
+  gdash: [[70,50,100],  [200,150,80]],   // ground dashes
+};
+
+// ── STARS ────────────────────────────────────────────────
+const STARS = Array.from({length:85}, ()=>({
+  nx: Math.random(),          // normalised x (0-1)
+  ny: Math.random() * .73,    // normalised y
+  r:  Math.pow(Math.random(),2)*1.5+.25,
+  sp: Math.random()*.28+.05,
+  a:  Math.random()*.5+.2,
+  tw: Math.random()*Math.PI*2
+}));
+
+// ── PARTICLES ────────────────────────────────────────────
+const parts = [];
+
+function dustAt(x, y, n){
+  for(let i=0;i<n;i++){
+    const a = Math.PI + (Math.random()-.5)*1.6;
+    const s = .8 + Math.random()*2.2;
+    parts.push({x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s-1.2,
+                life:.7, r:1.5+Math.random()*2, c:0, grav:.07});
+  }
+}
+
+function deathAt(x, y){
+  const PAL = [[255,56,96],[255,209,102],[255,255,255],[0,245,212],[167,139,250]];
+  for(let i=0;i<40;i++){
+    const a = Math.random()*Math.PI*2;
+    const s = 2 + Math.random()*12;
+    parts.push({x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s-3,
+                life:1, r:1.5+Math.random()*3,
+                c:PAL[i%PAL.length], grav:.22, death:true});
+  }
+}
+
+function stepParts(){
+  for(let i=parts.length-1;i>=0;i--){
+    const p=parts[i];
+    p.vx*=.93; p.vy+=p.grav;
+    p.x+=p.vx; p.y+=p.vy;
+    p.life-=.026;
+    if(p.life<=0) parts.splice(i,1);
+  }
+}
+
+function drawParts(){
+  for(const p of parts){
+    cx.save();
+    cx.globalAlpha = Math.max(0,p.life);
+    if(p.death){
+      const [r,g,b]=p.c;
+      cx.shadowBlur=8; cx.shadowColor=`rgb(${r},${g},${b})`;
+      cx.fillStyle=`rgb(${r},${g},${b})`;
+      cx.fillRect(p.x-p.r*.5, p.y-p.r*.5, p.r, p.r);
+    } else {
+      cx.fillStyle=`rgba(160,140,210,${p.life*.55})`;
+      cx.beginPath(); cx.arc(p.x,p.y,p.r,0,Math.PI*2); cx.fill();
+    }
+    cx.restore();
+  }
+}
+
+// ── POPUPS ───────────────────────────────────────────────
+const pops = [];
+function addPop(x,y,txt,col){
+  pops.push({x,y,txt,col:col||'#ffd166',life:1,vy:-1.5});
+}
+function stepDrawPops(){
+  for(let i=pops.length-1;i>=0;i--){
+    const p=pops[i];
+    p.y+=p.vy; p.life-=.02;
+    if(p.life<=0){pops.splice(i,1);continue;}
+    cx.save();
+    cx.globalAlpha=p.life;
+    cx.shadowBlur=10; cx.shadowColor=p.col;
+    cx.fillStyle=p.col;
+    cx.font='bold 13px "Courier New",monospace';
+    cx.textAlign='center';
+    cx.fillText(p.txt,p.x,p.y);
+    cx.restore();
+  }
+}
+
+// ── SHAKE ────────────────────────────────────────────────
+let shPow=0, shX=0, shY=0;
+function addShake(m){ shPow=Math.max(shPow,m); }
+function stepShake(){
+  if(shPow>.3){
+    shX=(Math.random()-.5)*shPow*2;
+    shY=(Math.random()-.5)*shPow*2;
+    shPow*=.7;
+  } else { shPow=0; shX=0; shY=0; }
+}
+
+// ── DRAW HELPERS ─────────────────────────────────────────
+let gOff=0;   // ground dash offset — only updated during PLAY
+
+function drawBG(spd){
+  // Sky gradient blended between night and day
+  const sky=cx.createLinearGradient(0,0,0,GY);
+  sky.addColorStop(0,   lerpCSS(PAL.sky0[0], PAL.sky0[1], dn));
+  sky.addColorStop(0.7, lerpCSS(PAL.sky1[0], PAL.sky1[1], dn));
+  sky.addColorStop(1,   lerpCSS(PAL.sky2[0], PAL.sky2[1], dn));
+  cx.fillStyle=sky; cx.fillRect(0,0,W,GY);
+
+  // Sun / Moon disc
+  if(dn > 0.05){
+    // Sun (rises from right horizon as day comes)
+    const sunX = W*0.82, sunY = lerp(GY*0.9, GY*0.12, dn);
+    const sunR = lerp(0, 36, dn);
+    cx.save();
+    cx.globalAlpha = dn;
+    cx.shadowBlur = 40*dn; cx.shadowColor='rgba(255,180,60,.8)';
+    const sg=cx.createRadialGradient(sunX,sunY,0,sunX,sunY,sunR);
+    sg.addColorStop(0,'rgba(255,240,180,1)');
+    sg.addColorStop(1,'rgba(255,140,30,0)');
+    cx.fillStyle=sg;
+    cx.beginPath(); cx.arc(sunX,sunY,sunR*1.8,0,Math.PI*2); cx.fill();
+    cx.restore();
+  }
+  if(dn < 0.95){
+    // Moon
+    const moonX=W*0.78, moonY=GY*0.16;
+    cx.save();
+    cx.globalAlpha = 1-dn;
+    cx.shadowBlur=24; cx.shadowColor='rgba(200,220,255,.6)';
+    cx.fillStyle='rgba(230,235,255,0.85)';
+    cx.beginPath(); cx.arc(moonX,moonY,16,0,Math.PI*2); cx.fill();
+    cx.fillStyle=lerpCSS(PAL.sky1[0],PAL.sky1[1],dn);
+    cx.shadowBlur=0;
+    cx.beginPath(); cx.arc(moonX+9,moonY-4,13,0,Math.PI*2); cx.fill();
+    cx.restore();
+  }
+
+  // Horizon glow
+  const hRGB = PAL.horiz[dn > 0.5 ? 1 : 0];
+  const hBlend = dn > 0.5 ? (dn-0.5)*2 : dn*2;
+  const hIntensity = 0.06 + dn*0.08;
+  const hg=cx.createRadialGradient(W*.5,GY,8,W*.5,GY,W*.55);
+  hg.addColorStop(0, lerpCSSA(PAL.horiz[0],PAL.horiz[1],dn, hIntensity));
+  hg.addColorStop(1,'rgba(0,0,0,0)');
+  cx.fillStyle=hg; cx.fillRect(0,GY-H*.3,W,H*.45);
+}
+
+function drawStars(playing, spd){
+  const starAlpha = Math.max(0, 1 - dn*1.4); // fade out as day comes
+  if(starAlpha <= 0) return;
+  const f = playing ? spd/SPD0 : 1;
+  for(const s of STARS){
+    s.tw+=.035;
+    if(playing){ s.nx -= s.sp*f*.00028; if(s.nx<0)s.nx=1; }
+    const alpha = starAlpha * s.a*(.62+Math.sin(s.tw)*.38);
+    cx.beginPath();
+    cx.arc(s.nx*W, s.ny*H, s.r, 0, Math.PI*2);
+    cx.fillStyle=`rgba(210,210,255,${alpha})`;
+    cx.fill();
+  }
+}
+
+function drawGround(spd, playing){
+  // Ground fill
+  const gf=cx.createLinearGradient(0,GY,0,H);
+  gf.addColorStop(0, lerpCSS(PAL.gf0[0],PAL.gf0[1],dn));
+  gf.addColorStop(1, lerpCSS(PAL.gf1[0],PAL.gf1[1],dn));
+  cx.fillStyle=gf; cx.fillRect(0,GY,W,H-GY);
+
+  // Scrolling dashes
+  if(playing) gOff=(gOff-spd)%80;
+  cx.save();
+  const dashCol = lerpCSSA(PAL.gdash[0],PAL.gdash[1],dn, 0.5);
+  cx.strokeStyle=dashCol; cx.lineWidth=1.5;
+  for(let x=gOff; x<W+80; x+=80){
+    cx.beginPath(); cx.moveTo(x,GY+9); cx.lineTo(x+32,GY+9); cx.stroke();
+  }
+  cx.restore();
+
+  // Ground line
+  const glCol = lerpCSS(PAL.gline[0],PAL.gline[1],dn);
+  cx.save();
+  cx.shadowBlur=16; cx.shadowColor=glCol;
+  cx.strokeStyle=glCol; cx.lineWidth=2;
+  cx.beginPath(); cx.moveTo(0,GY); cx.lineTo(W,GY); cx.stroke();
+  cx.restore();
+}
+
+// ── PLAYER ───────────────────────────────────────────────
+function makePlayer(){
+  return {
+    w:28, h:60,
+    x: Math.floor(W*.16),
+    y: GY-60,
+    vy:0,
+    onGround:true,
+    ducking:false,
+    duckT:0,
+    runF:0,
+    landF:0,
+    trail:[]
+  };
+}
+
+function playerJump(p){
+  if(p.onGround && !p.ducking){
+    p.vy=JVEL; p.onGround=false;
+    dustAt(p.x+p.w*.5, GY, 7);
+  }
+}
+
+function playerDuck(p){
+  if(p.onGround && !p.ducking){
+    p.ducking=true; p.h=28; p.y+=32; p.duckT=DUCK_F;
+  } else if(!p.onGround){
+    if(p.vy<6) p.vy=6; // fast-fall
+  }
+}
+
+function playerUnduck(p){
+  p.ducking=false; p.y-=32; p.h=60;
+}
+
+function stepPlayer(p, spd){
+  // Gravity
+  if(!p.onGround){ p.vy+=G; p.y+=p.vy; }
+
+  // Ground check
+  if(p.y+p.h >= GY){
+    if(!p.onGround){ p.landF=9; dustAt(p.x+p.w*.5,GY,5); if(p.vy>5)addShake(4); }
+    p.y=GY-p.h; p.vy=0; p.onGround=true;
+  }
+
+  // Duck timer
+  if(p.ducking){ p.duckT--; if(p.duckT<=0)playerUnduck(p); }
+
+  if(p.landF>0) p.landF--;
+  if(p.onGround && !p.ducking) p.runF+=.25*(spd/SPD0);
+
+  // Trail
+  p.trail.push({x:p.x, y:p.y, h:p.h});
+  if(p.trail.length>6) p.trail.shift();
+}
+
+function playerHB(p){
+  return {x:p.x+6, y:p.y+6, w:p.w-12, h:p.h-8};
+}
+
+function drawPlayer(p, spd){
+  const stage = spd>=12?2:spd>=9?1:0;
+  const cols=['#00f5d4','#a78bfa','#ff8fa3'];
+  const col=cols[stage];
+
+  // Trail
+  p.trail.forEach((t,i)=>{
+    cx.save();
+    cx.globalAlpha=(i/p.trail.length)*.09;
+    cx.fillStyle=col;
+    cx.fillRect(t.x,t.y,p.w,t.h);
+    cx.restore();
+  });
+
+  cx.save();
+  // Squash on land
+  if(p.landF>0){
+    const t=p.landF/9;
+    const px2=p.x+p.w*.5, py2=p.y+p.h*.5;
+    cx.translate(px2,py2);
+    cx.scale(1+t*.16, 1-t*.1);
+    cx.translate(-px2,-py2);
+  }
+
+  cx.strokeStyle=col; cx.shadowColor=col; cx.shadowBlur=16;
+  cx.lineWidth=3.6; cx.lineCap='round'; cx.lineJoin='round';
+
+  const ox=p.x+p.w*.5;
+  const ot=p.y;       // top of bounding box
+
+  cx.beginPath();
+
+  if(p.ducking){
+    // Slide: head forward-right, body horizontal, legs behind
+    const hx=ox+13, hy=ot+9;
+    cx.arc(hx,hy,8,0,Math.PI*2);
+    cx.moveTo(hx-1,hy+8); cx.lineTo(ox-15,hy+10);
+    cx.moveTo(hx,hy+6);   cx.lineTo(hx+9,hy+15);
+    cx.moveTo(ox-3,hy+9); cx.lineTo(ox-15,hy+4);
+    cx.moveTo(ox-11,hy+10); cx.lineTo(ox-20,hy+20);
+    cx.moveTo(ox-7, hy+12); cx.lineTo(ox-16,hy+24);
+
+  } else if(!p.onGround){
+    // Air: tuck pose
+    const jy=ot+10;
+    cx.arc(ox,jy,9,0,Math.PI*2);
+    cx.moveTo(ox,jy+9);  cx.lineTo(ox,jy+22);
+    cx.moveTo(ox,jy+14); cx.lineTo(ox-13,jy+6);
+    cx.moveTo(ox,jy+14); cx.lineTo(ox+13,jy+6);
+    cx.moveTo(ox,jy+22); cx.lineTo(ox-10,jy+33); cx.lineTo(ox-5,jy+44);
+    cx.moveTo(ox,jy+22); cx.lineTo(ox+10,jy+33); cx.lineTo(ox+5,jy+44);
+
+  } else {
+    // Run cycle
+    const s  = Math.sin(p.runF)*16;
+    const s2 = Math.cos(p.runF)*14;   // arms opposite
+    const ry=ot+9;
+    cx.arc(ox,ry,9,0,Math.PI*2);
+    cx.moveTo(ox,ry+9);  cx.lineTo(ox,ry+24);
+    cx.moveTo(ox,ry+15); cx.lineTo(ox+s2,ry+7);
+    cx.moveTo(ox,ry+15); cx.lineTo(ox-s2,ry+7);
+    cx.moveTo(ox,ry+24); cx.lineTo(ox+s, ry+37); cx.lineTo(ox+s+(s>0?4:-4), ry+49);
+    cx.moveTo(ox,ry+24); cx.lineTo(ox-s, ry+37); cx.lineTo(ox-s+(s<0?4:-4), ry+49);
+  }
+  cx.stroke();
+  cx.restore();
+
+  // Land ring
+  if(p.landF>0 && p.onGround){
+    const pr=1-p.landF/9;
+    cx.save();
+    cx.globalAlpha=(1-pr)*.5;
+    cx.strokeStyle=col; cx.lineWidth=2; cx.shadowBlur=10; cx.shadowColor=col;
+    cx.beginPath();
+    cx.ellipse(p.x+p.w*.5, GY, 28*pr+6, 5*pr+2, 0,0,Math.PI*2);
+    cx.stroke();
+    cx.restore();
+  }
+}
+
+// ── OBSTACLES ────────────────────────────────────────────
+// SPIKE = on ground, jump over
+// BEAM  = from ceiling, duck under (gap always 58px)
+// Gap must be: > duck hitbox top (~22px) so ducking is safe
+//              < stand hitbox top (~52px) so standing always hits
+const BEAM_GAP = 36;
+
+function makeObs(){
+  const isSpike = Math.random() < .52;
+  const o = { passed:false, pulse:Math.random()*Math.PI*2 };
+  if(isSpike){
+    o.type='SPIKE';
+    o.w = 28 + Math.floor(Math.random()*3)*8;  // 28, 36, 44
+    o.h = 34 + Math.floor(Math.random()*2)*12; // 34, 46
+    o.x = W+40;
+    o.y = GY - o.h;
+  } else {
+    o.type='BEAM';
+    o.w = 28;
+    o.x = W+40;
+    o.y = 0;
+    o.h = GY - BEAM_GAP;  // beam height; gap is from (GY-BEAM_GAP) to GY
+  }
+  return o;
+}
+
+function stepObs(o, spd){ o.x-=spd; o.pulse+=.07; }
+
+function obsHBs(o){
+  if(o.type==='SPIKE')
+    return [{x:o.x+5, y:o.y+8, w:o.w-10, h:o.h-8}];
+  // Beam only (the gap below it is safe)
+  return [{x:o.x, y:0, w:o.w, h:o.h}];
+}
+
+function obsOff(o){ return o.x+o.w < -20; }
+
+function drawObs(o){
+  const pv=.7+Math.sin(o.pulse)*.3;
+  cx.save();
+
+  if(o.type==='SPIKE'){
+    // Base glow
+    cx.shadowBlur=20*pv; cx.shadowColor='#ff3860';
+    // Body gradient
+    const g=cx.createLinearGradient(o.x, o.y+o.h, o.x+o.w*.5, o.y);
+    g.addColorStop(0,`rgba(230,20,55,${.88*pv})`);
+    g.addColorStop(1,`rgba(255,170,70,${pv})`);
+    cx.fillStyle=g;
+    cx.beginPath();
+    cx.moveTo(o.x,        o.y+o.h);
+    cx.lineTo(o.x+o.w*.5, o.y);
+    cx.lineTo(o.x+o.w,    o.y+o.h);
+    cx.closePath(); cx.fill();
+    // Inner bright shard
+    cx.shadowBlur=0; cx.fillStyle=`rgba(255,235,160,${.4*pv})`;
+    cx.beginPath();
+    cx.moveTo(o.x+7,       o.y+o.h);
+    cx.lineTo(o.x+o.w*.5,  o.y+11);
+    cx.lineTo(o.x+o.w-7,   o.y+o.h);
+    cx.closePath(); cx.fill();
+
+  } else {
+    // Beam
+    cx.shadowBlur=18*pv; cx.shadowColor='#00e5ff';
+    const g=cx.createLinearGradient(o.x,0,o.x+o.w,0);
+    g.addColorStop(0,`rgba(0,180,230,.1)`);
+    g.addColorStop(.5,`rgba(0,229,255,${.62*pv})`);
+    g.addColorStop(1,`rgba(0,180,230,.1)`);
+    cx.fillStyle=g; cx.fillRect(o.x,0,o.w,o.h);
+    cx.shadowBlur=5; cx.strokeStyle=`rgba(0,235,255,${.75*pv})`;
+    cx.lineWidth=1.5; cx.strokeRect(o.x,0,o.w,o.h);
+    // Warning stripe at bottom of beam
+    for(let i=0;i<4;i++){
+      cx.fillStyle=i%2===0?`rgba(255,215,0,${.32*pv})`:'rgba(0,0,0,.18)';
+      cx.fillRect(o.x, o.h-12+i*3, o.w, 3);
+    }
+    // Down-arrow hint (duck here!)
+    cx.shadowBlur=10; cx.shadowColor='#00f5d4';
+    cx.strokeStyle=`rgba(0,245,212,${.55*pv})`;
+    cx.lineWidth=2;
+    const ax=o.x+o.w*.5, ay=o.h+13;
+    cx.beginPath();
+    cx.moveTo(ax,ay); cx.lineTo(ax-7,ay-9);
+    cx.moveTo(ax,ay); cx.lineTo(ax+7,ay-9);
+    cx.stroke();
+  }
+  cx.restore();
+}
+
+// ── COLLISION ────────────────────────────────────────────
+function hits(p, o){
+  const ph=playerHB(p);
+  for(const b of obsHBs(o)){
+    if(ph.x<b.x+b.w && ph.x+ph.w>b.x && ph.y<b.y+b.h && ph.y+ph.h>b.y) return true;
+  }
+  return false;
+}
+
+// ── STORAGE (safe fallback for sandboxed environments) ───
+const store = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+};
+
+// ── GAME STATE ───────────────────────────────────────────
+let MODE='START';  // START PLAY OVER
+let score=0, hiScore=+store.get('sdHi')||0;
+let spd=SPD0, frame=0, raf=0;
+let player=null, obsList=[], nextGap=0;
+let lastScDisp=-1;
+
+hiEl.textContent=hiScore;
+
+function calcGap(){
+  return Math.max(GAP_MIN, GAP0-(spd-SPD0)*20);
+}
+
+function startGame(){
+  player   = makePlayer();
+  obsList  = [];
+  parts.length=0; pops.length=0;
+  score=0; frame=0; spd=SPD0; gOff=0; shPow=0;
+  nextGap  = Math.floor(GAP0*.55);
+  lastScDisp=-1;
+  dn=0; dnTarget=0; lastDnScore=0;
+  MODE='PLAY';
+  ov.classList.add('off');
+  cancelAnimationFrame(raf);
+  loop();
+}
+
+function gameOver(){
+  MODE='OVER';
+  addShake(18);
+  deathAt(player.x+player.w*.5, player.y+player.h*.5);
+  const s=Math.floor(score);
+  goScEl.textContent=s;
+  if(s>hiScore){
+    hiScore=s;
+    store.set('sdHi',hiScore);
+    hiEl.textContent=hiScore;
+    goRecEl.style.display='';
+  } else {
+    goRecEl.style.display='none';
+  }
+  setTimeout(()=>{
+    sCard.style.display='none';
+    goCard.style.display='';
+    goCard.style.animation='none';
+    void goCard.offsetWidth;  // reflow to re-trigger
+    goCard.style.animation='';
+    ov.classList.remove('off');
+  }, 550);
+}
+
+function showMenu(){
+  MODE='START';
+  cancelAnimationFrame(raf);
+  sCard.style.display=''; goCard.style.display='none';
+  sCard.style.animation='none'; void sCard.offsetWidth; sCard.style.animation='';
+  ov.classList.remove('off');
+  // draw one static frame behind the menu
+  dn=0; dnTarget=0;
+  cx.clearRect(0,0,W,H);
+  drawBG(SPD0); drawStars(false,SPD0); drawGround(SPD0,false);
+}
+
+// ── MAIN LOOP ────────────────────────────────────────────
+function loop(){
+  stepShake();
+
+  // Clear full canvas BEFORE any transform
+  cx.clearRect(0,0,W,H);
+
+  // Apply shake via drawImage trick — we draw to offscreen? No.
+  // Instead: draw everything, then shift with save/restore AFTER clear.
+  cx.save();
+  cx.translate(shX, shY);
+
+  drawBG(spd);
+  drawStars(MODE==='PLAY', spd);
+  drawGround(spd, MODE==='PLAY');
+
+  if(MODE==='PLAY'){
+    spd = Math.min(SPD_MAX, spd+SPD_INC);
+    score += spd*.018;
+    frame++;
+
+    // ── Day/Night cycle trigger every 200 score ──
+    const milestone = Math.floor(score/200);
+    if(milestone > lastDnScore){
+      lastDnScore = milestone;
+      dnTarget = dnTarget === 0 ? 1 : 0;  // toggle
+      // show a label popup
+      addPop(W*.5, H*.38, dnTarget===1 ? '☀ DAWN' : '☾ DUSK', dnTarget===1?'#ffd166':'#a0b8ff');
+    }
+    // Smoothly blend dn toward dnTarget
+    if(dn !== dnTarget){
+      dn = dnTarget===1
+        ? Math.min(1, dn+DN_RATE)
+        : Math.max(0, dn-DN_RATE);
+    }
+
+    stepPlayer(player, spd);
+
+    // Spawn
+    nextGap-=spd;
+    if(nextGap<=0){
+      obsList.push(makeObs());
+      nextGap=calcGap()+(Math.random()*70-35);
+    }
+
+    refreshPips(spd, SPD0, SPD_MAX);
+
+    // Score HUD
+    const s=Math.floor(score);
+    if(s!==lastScDisp){
+      scEl.textContent=s; lastScDisp=s;
+      if(s>0 && s%100===0){
+        scEl.classList.add('pop');
+        addPop(W*.5, H*.28, s+'!', '#00f5d4');
+        setTimeout(()=>scEl.classList.remove('pop'),150);
+      }
+    }
+  }
+
+  // Obstacles
+  for(let i=obsList.length-1;i>=0;i--){
+    const o=obsList[i];
+    if(MODE==='PLAY') stepObs(o,spd);
+    drawObs(o);
+    if(MODE==='PLAY'){
+      if(hits(player,o)){
+        gameOver();
+      } else if(!o.passed && o.x+o.w < player.x){
+        o.passed=true;
+        const bonus=Math.max(1,Math.floor(spd*.4));
+        score+=bonus;
+        addPop(player.x+player.w*.5, player.y-14, '+'+bonus, '#ffd166');
+      }
+    }
+    if(obsOff(o)) obsList.splice(i,1);
+  }
+
+  if(MODE==='PLAY') drawPlayer(player,spd);
+
+  stepParts(); drawParts();
+  stepDrawPops();
+
+  cx.restore();
+
+  if(MODE==='PLAY' || parts.length>0 || pops.length>0){
+    raf=requestAnimationFrame(loop);
+  }
+}
+
+// ── INPUT ────────────────────────────────────────────────
+window.addEventListener('keydown', e=>{
+  if(MODE!=='PLAY') return;
+  if(['ArrowUp','KeyW','Space'].includes(e.code)){ e.preventDefault(); playerJump(player); }
+  if(['ArrowDown','KeyS'].includes(e.code)){ e.preventDefault(); playerDuck(player); }
+});
+
+// Mobile buttons
+document.getElementById('jumpBtn').addEventListener('touchstart', e=>{
+  e.preventDefault(); if(MODE==='PLAY') playerJump(player);
+},{passive:false});
+document.getElementById('slideBtn').addEventListener('touchstart', e=>{
+  e.preventDefault(); if(MODE==='PLAY') playerDuck(player);
+},{passive:false});
+
+// Swipe on canvas
+let tsy=0;
+cv.addEventListener('touchstart', e=>{ tsy=e.touches[0].clientY; e.preventDefault(); },{passive:false});
+cv.addEventListener('touchend', e=>{
+  if(MODE!=='PLAY') return;
+  e.preventDefault();
+  const d=e.changedTouches[0].clientY-tsy;
+  if(d < -30) playerJump(player);
+  else if(d > 30) playerDuck(player);
+  else playerJump(player);
+},{passive:false});
+window.addEventListener('touchmove', e=>e.preventDefault(),{passive:false});
+
+// Buttons
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('retryBtn').addEventListener('click', startGame);
+document.getElementById('menuBtn').addEventListener('click',  showMenu);
+
+// ── BOOT ─────────────────────────────────────────────────
+cx.clearRect(0,0,W,H);
+drawBG(SPD0); drawStars(false,SPD0); drawGround(SPD0,false);
+</script>
+</body>
+</html>
